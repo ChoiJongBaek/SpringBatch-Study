@@ -9,20 +9,14 @@ import org.springframework.batch.core.configuration.annotation.StepBuilderFactor
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.tasklet.Tasklet;
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.support.ListItemReader;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Arrays;
-import java.util.List;
-
 
 @RequiredArgsConstructor
 @Configuration
-public class TaskletConfiguration {
+public class Limit_AllowConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -42,16 +36,26 @@ public class TaskletConfiguration {
                 .tasklet(new Tasklet() {
                     @Override
                     public RepeatStatus execute(StepContribution stepContribution, ChunkContext chunkContext) throws Exception {
+                        System.out.println("stepContribution = " + stepContribution + ", chunkContext = " + chunkContext);
                         return RepeatStatus.FINISHED;
                     }
                 })
+                .allowStartIfComplete(true)
                 .build();
     }
 
     @Bean
     public Step step2() {
         return stepBuilderFactory.get("step2")
-                .tasklet(new CustomTasklet())
+                .tasklet(new Tasklet() {
+                    @Override
+                    public RepeatStatus execute(StepContribution stepContribution, ChunkContext chunkContext) throws Exception {
+                        System.out.println("stepContribution = " + stepContribution + ", chunkContext = " + chunkContext);
+                        throw new RuntimeException("step2 was failed");
+//                        return RepeatStatus.FINISHED;
+                    }
+                })
+                .startLimit(3)
                 .build();
     }
 }
