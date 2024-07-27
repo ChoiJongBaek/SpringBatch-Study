@@ -10,11 +10,14 @@ import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
+import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
+import org.springframework.batch.item.file.transform.Range;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.FileSystemResource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +46,7 @@ public class FlatFilesConfiguration {
                 .writer(new ItemWriter() {
                     @Override
                     public void write(List items) throws Exception {
-                        System.out.println("items = " + items);
+                        items.forEach(item -> System.out.println(item));
                     }
                 })
                 .build();
@@ -63,11 +66,15 @@ public class FlatFilesConfiguration {
     public ItemReader itemReader() {
         return new FlatFileItemReaderBuilder<Customer>()
                 .name("flatFile")
-                .resource(new ClassPathResource("/customer.csv"))
-                .fieldSetMapper(new CustomerFieldSetMapper())
+                .resource(new FileSystemResource("/Users/jongbaek/Desktop/study/SpringBatch/source/springbatch/src/main/resources/customer.txt"))
+                .fieldSetMapper(new BeanWrapperFieldSetMapper<>())
+                .targetType(Customer.class)
                 .linesToSkip(1)
-                .delimited().delimiter(",")
-                .names("name", "age", "year")
+                .fixedLength()
+                .addColumns(new Range(1, 5))
+                .addColumns(new Range(6, 9))
+                .addColumns(new Range(10, 11))
+                .names("name", "year", "age")
                 .build();
     }
 }
