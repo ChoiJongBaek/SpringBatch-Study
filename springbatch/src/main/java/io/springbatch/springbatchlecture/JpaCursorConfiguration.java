@@ -8,24 +8,23 @@ import org.springframework.batch.core.configuration.annotation.StepBuilderFactor
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
-import org.springframework.batch.item.json.JacksonJsonObjectReader;
-import org.springframework.batch.item.json.builder.JsonItemReaderBuilder;
+import org.springframework.batch.item.database.builder.JpaCursorItemReaderBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 
+import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
+import java.util.HashMap;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @Configuration
-public class JdbcCursorConfiguration {
+public class JpaCursorConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
-    private int chunkSize = 10;
-    private final DataSource dataSource;
+    private final EntityManagerFactory entityManagerFactory;
 
     @Bean
     public Job job() {
@@ -38,23 +37,23 @@ public class JdbcCursorConfiguration {
     @Bean
     public Step step1() {
         return stepBuilderFactory.get("step1")
-                .<Customer, Customer>chunk(chunkSize)
-                .reader(customerItemReader())
+                .<Customer, Customer>chunk(2)
+                .reader(customItemReader())
                 .writer(customItemWriter())
                 .build();
     }
 
     @Bean
-    public ItemReader<Customer> customerItemReader() {
+    public ItemReader<Customer> customItemReader() {
 
-        return new JdbcCursorItemReaderBuilder<Customer>()
-                .name("jdbcCursorItemReader")
-                //보통 fetchSize와 chunkSize를 동일하게 설정
-                .fetchSize(chunkSize)
-                .sql("select id, firstName, lastName, birthdate from customer where firstName like ? order by lastName, firstName")
-                .beanRowMapper(Customer.class)
-                .queryArguments("A%")
-                .dataSource(dataSource)
+        HashMap<String, Object> parameters = new HashMap<>();
+        parameters.put("firstname", "A%");
+
+        return new JpaCursorItemReaderBuilder()
+                .name("jpaCursorItemReader")
+                .queryString("select c from Customer c where firstname like :firstname")
+                .entityManagerFactory(entityManagerFactory)
+                .parameterValues(parameters)
                 .build();
     }
 
