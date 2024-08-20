@@ -11,7 +11,7 @@ import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.builder.JdbcPagingItemReaderBuilder;
-import org.springframework.batch.item.database.builder.JpaCursorItemReaderBuilder;
+import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder;
 import org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,11 +24,11 @@ import java.util.Map;
 
 @RequiredArgsConstructor
 @Configuration
-public class JdbcPagingConfiguration {
+public class JpaPagingConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
-    private final DataSource dataSource;
+    private final EntityManagerFactory entityManagerFactory;
 
     @Bean
     public Job job() throws Exception {
@@ -42,49 +42,28 @@ public class JdbcPagingConfiguration {
     public Step step1() throws Exception {
         return stepBuilderFactory.get("step1")
                 .<Customer, Customer>chunk(10)
-                .reader(customItemReader())
+                .reader(customerItemReader())
                 .writer(customItemWriter())
                 .build();
     }
 
     @Bean
-    public ItemReader<? extends Customer> customItemReader() throws Exception {
+    public ItemReader<? extends Customer> customerItemReader() {
 
-        Map<String, Object> parameters = new HashMap<>();
-        parameters.put("firstname", "A%");
-
-        return new JdbcPagingItemReaderBuilder<Customer>()
-                .name("jdbcPagingReader")
+        return new JpaPagingItemReaderBuilder<Customer>()
+                .name("jpaPagingItemReader")
+                .entityManagerFactory(entityManagerFactory)
                 .pageSize(10)
-                .dataSource(dataSource)
-                .rowMapper(new BeanPropertyRowMapper<>(Customer.class))
-                .queryProvider(createQueryProvider())
-                .parameterValues(parameters)
+                .queryString("select c from Customer c")
                 .build();
     }
 
-    @Bean
-    public PagingQueryProvider createQueryProvider() throws Exception {
-
-        SqlPagingQueryProviderFactoryBean queryProvider = new SqlPagingQueryProviderFactoryBean();
-        queryProvider.setDataSource(dataSource);
-        queryProvider.setSelectClause("id,firstName,lastName,birthdate");
-        queryProvider.setFromClause("from customer");
-        queryProvider.setWhereClause("where firstName like :firstname");
-
-        Map<String, Order> sortKeys = new HashMap<>(1);
-        sortKeys.put("id", Order.ASCENDING);
-
-        queryProvider.setSortKeys(sortKeys);
-
-        return queryProvider.getObject();
-    }
 
     @Bean
     public ItemWriter<Customer> customItemWriter() {
         return items -> {
-            for (Customer item : items) {
-                System.out.println(item.toString());
+            for (Customer customer : items) {
+                System.out.println(customer.getAddress().getLocation());
             }
         };
     }

@@ -1,23 +1,24 @@
 package io.springbatch.springbatchlecture;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
+import javax.persistence.OneToOne;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter
+@Setter
 @Entity
 public class Customer {
 
     @Id
     @GeneratedValue
-    private Long Id;
-    private String firstName;
-    private String lastName;
-    private String birthdate;
+    private Long id;
+    private String username;
+    private int age;
+
+    @OneToOne(mappedBy = "customer")
+    private Address address;
 }
