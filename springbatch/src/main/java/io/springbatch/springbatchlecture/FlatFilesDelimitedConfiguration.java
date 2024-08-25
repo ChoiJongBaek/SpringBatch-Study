@@ -44,20 +44,18 @@ public class FlatFilesDelimitedConfiguration {
     }
 
     @Bean
-    public FlatFileItemWriter<? super Customer> customItemWriter() {
+    public ItemWriter customItemWriter() {
 
-        return new FlatFileItemWriterBuilder<>()
+        return new FlatFileItemWriterBuilder<Customer>()
                 .name("flatFileWriter")
                 .resource(new FileSystemResource("/Users/jongbaek/Desktop/study/SpringBatch/source/springbatch/src/main/resources/customer.txt"))
-                // 기존 데이터 이후에 계속 데이터를 작성할 지 여부 확인
                 .append(true)
-                // 쓰기 작업 할 데이터가 없으면 파일 삭제 여부 확인
-                .shouldDeleteIfEmpty(true)
-                .delimited()
-                .delimiter("|")
+                .formatted()
+                .format("%-2d%-15s%-2d")
                 .names(new String[]{"id", "name", "age"})
                 .build();
     }
+
 
     @Bean
     public ListItemReader customItemReader() {
