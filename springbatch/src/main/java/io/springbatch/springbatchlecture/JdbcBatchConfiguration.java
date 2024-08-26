@@ -9,17 +9,13 @@ import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
+import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
 import org.springframework.batch.item.json.JacksonJsonObjectMarshaller;
-import org.springframework.batch.item.json.JsonFileItemWriter;
 import org.springframework.batch.item.json.builder.JsonFileItemWriterBuilder;
-import org.springframework.batch.item.xml.StaxEventItemWriter;
-import org.springframework.batch.item.xml.builder.StaxEventItemWriterBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.oxm.Marshaller;
-import org.springframework.oxm.xstream.XStreamMarshaller;
 
 import javax.sql.DataSource;
 import java.util.HashMap;
@@ -27,7 +23,7 @@ import java.util.Map;
 
 @RequiredArgsConstructor
 @Configuration
-public class JsonConfiguration {
+public class JdbcBatchConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -53,10 +49,10 @@ public class JsonConfiguration {
     @Bean
     public ItemWriter<? super Customer> customItemWriter() {
 
-        return new JsonFileItemWriterBuilder<Customer>()
-                .name("jsonFileWriter")
-                .jsonObjectMarshaller(new JacksonJsonObjectMarshaller<>())
-                .resource(new FileSystemResource("/Users/jongbaek/Desktop/study/SpringBatch/source/springbatch/src/main/resources/customer.json"))
+        return new JdbcBatchItemWriterBuilder<Customer>()
+                .dataSource(dataSource)
+                .sql("insert into customer2 values (:id, :firstName, :lastName, :birthdate)")
+                .beanMapped()
                 .build();
     }
 
