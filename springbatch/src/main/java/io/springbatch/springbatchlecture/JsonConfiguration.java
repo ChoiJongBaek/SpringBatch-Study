@@ -10,8 +10,9 @@ import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
-import org.springframework.batch.item.file.builder.FlatFileItemWriterBuilder;
-import org.springframework.batch.item.support.ListItemReader;
+import org.springframework.batch.item.json.JacksonJsonObjectMarshaller;
+import org.springframework.batch.item.json.JsonFileItemWriter;
+import org.springframework.batch.item.json.builder.JsonFileItemWriterBuilder;
 import org.springframework.batch.item.xml.StaxEventItemWriter;
 import org.springframework.batch.item.xml.builder.StaxEventItemWriterBuilder;
 import org.springframework.context.annotation.Bean;
@@ -21,11 +22,12 @@ import org.springframework.oxm.Marshaller;
 import org.springframework.oxm.xstream.XStreamMarshaller;
 
 import javax.sql.DataSource;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @Configuration
-public class XMLConfiguration {
+public class JsonConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -45,6 +47,16 @@ public class XMLConfiguration {
                 .<Customer, Customer>chunk(10)
                 .reader(customItemReader())
                 .writer(customItemWriter())
+                .build();
+    }
+
+    @Bean
+    public ItemWriter<? super Customer> customItemWriter() {
+
+        return new JsonFileItemWriterBuilder<Customer>()
+                .name("jsonFileWriter")
+                .jsonObjectMarshaller(new JacksonJsonObjectMarshaller<>())
+                .resource(new FileSystemResource("/Users/jongbaek/Desktop/study/SpringBatch/source/springbatch/src/main/resources/customer.json"))
                 .build();
     }
 
@@ -74,32 +86,5 @@ public class XMLConfiguration {
         reader.setParameterValues(parameters);
 
         return reader;
-    }
-
-    @Bean
-    public StaxEventItemWriter customItemWriter() {
-        return new StaxEventItemWriterBuilder<Customer>()
-                .name("staxEventWriter")
-                .marshaller(itemMarshaller())
-                .resource(new FileSystemResource("/Users/jongbaek/Desktop/study/SpringBatch/source/springbatch/src/main/resources/customer.xml"))
-                .rootTagName("customer")
-                .build();
-
-    }
-
-    @Bean
-    public Marshaller itemMarshaller() {
-
-        Map<String, Class<?>> aliases = new HashMap<>();
-        aliases.put("customer", Customer.class);
-        aliases.put("id", Long.class);
-        aliases.put("firstName", String.class);
-        aliases.put("lastName", String.class);
-        aliases.put("birthdate", String.class);
-
-        XStreamMarshaller xStreamMarshaller = new XStreamMarshaller();
-        xStreamMarshaller.setAliases(aliases);
-
-        return xStreamMarshaller;
     }
 }
