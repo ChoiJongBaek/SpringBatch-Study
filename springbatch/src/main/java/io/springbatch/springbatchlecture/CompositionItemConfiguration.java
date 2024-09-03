@@ -8,21 +8,16 @@ import org.springframework.batch.core.configuration.annotation.StepBuilderFactor
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.*;
 import org.springframework.batch.item.adapter.ItemWriterAdapter;
-import org.springframework.batch.item.database.JdbcPagingItemReader;
-import org.springframework.batch.item.database.Order;
-import org.springframework.batch.item.database.builder.JpaItemWriterBuilder;
-import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
+import org.springframework.batch.item.support.builder.CompositeItemProcessorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.persistence.EntityManagerFactory;
-import javax.sql.DataSource;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 @RequiredArgsConstructor
 @Configuration
-public class ItemWriterAdapterConfiguration {
+public class CompositionItemConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -49,23 +44,21 @@ public class ItemWriterAdapterConfiguration {
                         return i>10?null:"item"+i;
                     }
                 })
-                .writer(customItemWriter())
+                .processor(customItemProcessor())
+                .writer(items -> System.out.println(items))
                 .build();
     }
 
     @Bean
-    public ItemWriter<? super String> customItemWriter() {
+    public ItemProcessor<? super String, String> customItemProcessor() {
 
-        ItemWriterAdapter<String> writer = new ItemWriterAdapter<>();
-        writer.setTargetObject(customService());
-        writer.setTargetMethod("customWrite");
+        List itemProcessor = new ArrayList();
+        itemProcessor.add(new CustomItemProcessor());
+        itemProcessor.add(new CustomItemProcessor2());
 
-        return writer;
+        return new CompositeItemProcessorBuilder<>()
+                .delegates(itemProcessor)
+                .build();
     }
 
-    @Bean
-    public CustomService customService() {
-
-        return new CustomService();
-    }
 }
