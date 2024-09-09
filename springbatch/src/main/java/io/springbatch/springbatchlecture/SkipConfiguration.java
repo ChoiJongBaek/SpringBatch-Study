@@ -7,18 +7,12 @@ import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.item.*;
-import org.springframework.batch.repeat.RepeatCallback;
-import org.springframework.batch.repeat.RepeatContext;
-import org.springframework.batch.repeat.RepeatStatus;
-import org.springframework.batch.repeat.exception.ExceptionHandler;
-import org.springframework.batch.repeat.exception.SimpleLimitExceptionHandler;
-import org.springframework.batch.repeat.support.RepeatTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @RequiredArgsConstructor
 @Configuration
-public class FaultTolerantConfiguration {
+public class SkipConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -37,31 +31,29 @@ public class FaultTolerantConfiguration {
                 .<String, String>chunk(5)
                 .reader(new ItemReader<String>() {
                     int i = 0;
-
                     @Override
-                    public String read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
+                    public String read() throws SkippableException {
                         i++;
-                        if(i == 1) {
-                            throw new IllegalArgumentException("this exception is skipped");
+                        if(i == 3) {
+                            throw new SkippableException("skip");
                         }
-
-                        return i > 3 ? null : "item" + i;
+                        System.out.println("ItemReader : " + i);
+                        return i > 20 ? null : String.valueOf(i);
                     }
                 })
-                .processor(new ItemProcessor<String, String>() {
-                    @Override
-                    public String process(String item) throws Exception {
-                        throw new IllegalStateException("this exception is retried");
-
-//                        return null;
-                    }
-                })
-                .writer(items -> System.out.println(items))
+                .processor(itemProcess())
+                .writer(itemWriter())
                 .faultTolerant()
-                .skip(IllegalArgumentException.class)
+                .skip(SkippableException.class)
                 .skipLimit(2)
-                .retry(IllegalStateException.class)
-                .retryLimit(2)
                 .build();
+    }
+
+    private ItemProcessor<? super String, String> itemProcess() {
+        return new SkipItemProcessor();
+    }
+
+    private ItemWriter<? super String> itemWriter() {
+        return new SkipItemWriter();
     }
 }
