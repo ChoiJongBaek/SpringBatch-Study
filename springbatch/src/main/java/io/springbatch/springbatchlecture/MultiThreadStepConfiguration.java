@@ -1,7 +1,8 @@
 package io.springbatch.springbatchlecture;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.batch.core.*;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
@@ -20,14 +21,12 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import javax.sql.DataSource;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.HashMap;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @Configuration
-public class AsyncConfiguration {
+public class MultiThreadStepConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -38,7 +37,6 @@ public class AsyncConfiguration {
         return jobBuilderFactory.get("batchJob")
                 .incrementer(new RunIdIncrementer())
                 .start(step1())
-//                .start(asyncStep1())
                 .listener(new StopWatchJobListener())
                 .build();
     }
@@ -46,22 +44,26 @@ public class AsyncConfiguration {
     @Bean
     public Step step1() throws Exception {
         return stepBuilderFactory.get("step1")
-                .chunk(100)
+                .<Customer, Customer>chunk(100)
                 .reader(pagingItemReader())
-                .processor(customItemProcessor())
+                .listener(new CustomItemReadListner())
+                .processor((ItemProcessor<Customer, Customer>) item -> item)
+                .listener(new CustomItemProcessorListner())
                 .writer(customItemWriter())
+                .listener(new CustomItemWriterListner())
+                // 설정 시 비동기적인 멀티스레드 방식 실행
+                .taskExecutor(taskExecutor())
                 .build();
     }
 
     @Bean
-    public Step asyncStep1() throws Exception {
-        return stepBuilderFactory.get("asyncStep1")
-                .chunk(100)
-                .reader(pagingItemReader())
-                .processor(asyncItemProcessor())
-                .writer(asyncItemWriter())
-                .taskExecutor(taskExecutor())
-                .build();
+    public TaskExecutor taskExecutor() {
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(4);
+        taskExecutor.setMaxPoolSize(8);
+        taskExecutor.setThreadNamePrefix("async-thread");
+
+        return taskExecutor;
     }
 
     @Bean
@@ -88,22 +90,6 @@ public class AsyncConfiguration {
     }
 
     @Bean
-    public ItemProcessor customItemProcessor() {
-        return new ItemProcessor<Customer, Customer>() {
-            @Override
-            public Customer process(Customer item) throws Exception {
-
-                Thread.sleep(1000);
-
-                return new Customer(item.getId(),
-                        item.getFirstName().toUpperCase(),
-                        item.getLastName().toUpperCase(),
-                        item.getBirthdate());
-            }
-        };
-    }
-
-    @Bean
     public JdbcBatchItemWriter customItemWriter() {
         JdbcBatchItemWriter<Customer> itemWriter = new JdbcBatchItemWriter<>();
 
@@ -113,38 +99,5 @@ public class AsyncConfiguration {
         itemWriter.afterPropertiesSet();
 
         return itemWriter;
-    }
-
-    @Bean
-    public AsyncItemProcessor asyncItemProcessor() throws Exception {
-        AsyncItemProcessor<Customer, Customer> asyncItemProcessor = new AsyncItemProcessor();
-
-        asyncItemProcessor.setDelegate(customItemProcessor());
-        asyncItemProcessor.setTaskExecutor(new SimpleAsyncTaskExecutor());
-//        asyncItemProcessor.setTaskExecutor(taskExecutor());
-        asyncItemProcessor.afterPropertiesSet();
-
-        return asyncItemProcessor;
-    }
-
-    @Bean
-    public AsyncItemWriter asyncItemWriter() throws Exception {
-        AsyncItemWriter<Customer> asyncItemWriter = new AsyncItemWriter<>();
-
-        asyncItemWriter.setDelegate(customItemWriter());
-        asyncItemWriter.afterPropertiesSet();
-
-        return asyncItemWriter;
-    }
-
-
-
-    @Bean
-    public TaskExecutor taskExecutor(){
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(4);
-        executor.setMaxPoolSize(8);
-        executor.setThreadNamePrefix("async-thread-");
-        return executor;
     }
 }
