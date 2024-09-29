@@ -10,7 +10,6 @@ import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.support.ListItemReader;
-import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -19,7 +18,7 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @Configuration
-public class ChunkListenerConfiguration {
+public class SkipListenerConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -35,17 +34,31 @@ public class ChunkListenerConfiguration {
     public Step step1() {
         return stepBuilderFactory.get("step1")
                 .<Integer, String>chunk(10)
-                .listener(new CustomChunkListener())
-                .listener(new CustomItemReadListener())
-                .listener(new CustomItemProcessListener())
-                .listener(new CustomItemWriterListener())
                 .reader(listItemReader())
-                .processor((ItemProcessor) item -> {
-                    return "item" + item;
+                .processor(new ItemProcessor<Integer, String>() {
+                    @Override
+                    public String process(Integer item) throws Exception {
+                        if(item == 4) {
+                            throw new CustomSkipException("process skipped");
+                        }
+                        return "item" + item;
+                    }
                 })
-                .writer((ItemWriter<String>) items -> {
-                    System.out.println("items = " + items);
+                .writer(new ItemWriter<String>() {
+                    @Override
+                    public void write(List<? extends String> items) throws Exception {
+                        for(String item : items) {
+                            if(item.equals("item5")) {
+                                throw new CustomSkipException("write skipped");
+                            }
+                            System.out.println("write : " + item);
+                        }
+                    }
                 })
+                .faultTolerant()
+                .skip(CustomSkipException.class)
+                .skipLimit(2)
+                .listener(new CustomSkipListener())
                 .build();
     }
 
