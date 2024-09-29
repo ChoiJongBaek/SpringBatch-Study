@@ -18,7 +18,7 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @Configuration
-public class SkipListenerConfiguration {
+public class RetryListenerConfiguration {
 
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
@@ -35,36 +35,18 @@ public class SkipListenerConfiguration {
         return stepBuilderFactory.get("step1")
                 .<Integer, String>chunk(10)
                 .reader(listItemReader())
-                .processor(new ItemProcessor<Integer, String>() {
-                    @Override
-                    public String process(Integer item) throws Exception {
-                        if(item == 4) {
-                            throw new CustomSkipException("process skipped");
-                        }
-                        return "item" + item;
-                    }
-                })
-                .writer(new ItemWriter<String>() {
-                    @Override
-                    public void write(List<? extends String> items) throws Exception {
-                        for(String item : items) {
-                            if(item.equals("item5")) {
-                                throw new CustomSkipException("write skipped");
-                            }
-                            System.out.println("write : " + item);
-                        }
-                    }
-                })
+                .processor(new CustomItemProcessor())
+                .writer(new CustomItemWriter())
                 .faultTolerant()
-                .skip(CustomSkipException.class)
-                .skipLimit(2)
-                .listener(new CustomSkipListener())
+                .retry(CustomRetryException.class)
+                .retryLimit(2)
+                .listener(new CustomRetryListener())
                 .build();
     }
 
     @Bean
     public ItemReader<Integer> listItemReader() {
-        List<Integer> list = Arrays.asList(1,2,3,4,5,6,7,8,9,10);
+        List<Integer> list = Arrays.asList(1,2,3,4);
         return new ListItemReader<>(list);
     }
 }
